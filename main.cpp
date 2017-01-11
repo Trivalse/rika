@@ -66,7 +66,7 @@ int main()
             // Play 'called' sound
             PlayRandomDialogue(pszRikaVoice_Called, uNoRikaVoice_Called);
 
-
+            // Add time in command state
             time_t Timeup = time(0) + uCommandStateSeconds;
 
             while (time(0) < Timeup)
