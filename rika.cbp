@@ -11,17 +11,6 @@
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Compiler>
-					<Add option="-std=c++11" />
-					<Add option="-std=c11" />
-					<Add directory="/usr/local/include/pocketsphinx" />
-					<Add directory="/usr/local/include/sphinxbase" />
-				</Compiler>
-				<Linker>
-					<Add option="-lSDL2  -lSDL2_mixer" />
-					<Add option="-lpocketsphinx -lsphinxbase -lsphinxad" />
-					<Add option="-lasound" />
-				</Linker>
 			</Target>
 			<Target title="Release">
 				<Option output="bin/Release/rika" prefix_auto="1" extension_auto="1" />
