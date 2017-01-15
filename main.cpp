@@ -1,7 +1,7 @@
 // Rika main function -- A. Amiruddin -- 25/12/2016
 
 // REVISION HISTORY
-// None
+// Added telegram bot and rika_text modules -- A. Amiruddin -- 15/01/2017
 
 //=================================================================================================
 //    Copyright (C) 2016  Afeeq Amiruddin
@@ -122,6 +122,8 @@ int main()
 
                     // Play 'command get' dialogue
                     PlayRandomDialogue(pszRikaVoice_CommandGet, uNoRikaVoice_CommandGet);
+                    
+                    // Do 'leaving home' routine here
 
                     break;
                 }
