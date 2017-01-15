@@ -11,9 +11,6 @@
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Linker>
-					<Add library="/usr/local/lib/libTgBot.a" />
-				</Linker>
 			</Target>
 			<Target title="Release">
 				<Option output="bin/Release/rika" prefix_auto="1" extension_auto="1" />
@@ -29,9 +26,11 @@
 			</Target>
 		</Build>
 		<Compiler>
-			<Add option="-Wall" />
 			<Add option="-fexceptions" />
 		</Compiler>
+		<Linker>
+			<Add library="/usr/local/lib/libTgBot.a" />
+		</Linker>
 		<Unit filename="main.cpp" />
 		<Unit filename="rika_extra/find_keywords/find_keywords.cpp" />
 		<Unit filename="rika_extra/find_keywords/find_keywords.h" />
