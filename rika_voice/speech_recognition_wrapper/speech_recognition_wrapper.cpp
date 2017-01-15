@@ -2,7 +2,7 @@
 // Uses ALSA and Pocketsphinx.
 
 // REVISION HISTORY
-// Fixed non-exiting error on audio capture -- A. Amiruddin -- 15/01/2017
+// Fixed non-exiting error on audio capture, and prints error correctly -- A. Amiruddin -- 15/01/2017
 
 //=================================================================================================
 //    Copyright (C) 2016  Afeeq Amiruddin
@@ -150,7 +150,7 @@ string RecogniseSpeech()
         // Input overrun
         else if (nFramesInBuffer == -EPIPE)
         {
-            cout << "Input Overrun!" << endl;
+            cout << snd_strerror(nFramesInBuffer) << endl;
             if (snd_pcm_prepare(Handle_SND) < 0)
             {
                 cout << "Can't recover from underrun" << endl;
@@ -184,7 +184,7 @@ string RecogniseSpeech()
         // Error
         else if (nFramesInBuffer < 0)
         {
-            cout << "Error in reading capture device!" << endl;
+            cout << snd_strerror(nFramesInBuffer) << endl;
             exit(1);
         }
 
