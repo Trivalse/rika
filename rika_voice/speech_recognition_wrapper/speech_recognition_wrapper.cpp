@@ -2,7 +2,7 @@
 // Uses ALSA and Pocketsphinx.
 
 // REVISION HISTORY
-// None
+// Fixed non-exiting error on audio capture
 
 //=================================================================================================
 //    Copyright (C) 2016  Afeeq Amiruddin
@@ -185,7 +185,7 @@ string RecogniseSpeech()
         else if (nFramesInBuffer < 0)
         {
             cout << "Error in reading capture device!" << endl;
-            nFramesInBuffer = 0;
+            exit(1);
         }
 
         // Send audio data to encoder

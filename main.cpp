@@ -1,7 +1,7 @@
 // Rika main function -- A. Amiruddin -- 25/12/2016
 
 // REVISION HISTORY
-// None
+// Added telegram bot and rika_text modules -- A. Amiruddin -- 15/01/2017
 
 //=================================================================================================
 //    Copyright (C) 2016  Afeeq Amiruddin
@@ -24,18 +24,31 @@
 #include <stdint.h>
 #include <cstdlib>
 #include <time.h>
+#include <signal.h>
 #include <unistd.h>
+#include <exception>
+#include <thread>
+#include <tgbot/tgbot.h>
 
 #include "rika_voice/speech_recognition_wrapper/speech_recognition_wrapper.h"
 #include "rika_voice/rika_voicepack/rika_voicepack_lib.h"
 #include "rika_voice/sdl_mixer_wrapper/sdl_mixer_wrapper.h"
 
+#include "rika_text/get_random_text_dialogue/get_random_text_dialogue.h"
+#include "rika_text/rika_textpack/rika_textpack_lib.h"
+
 #include "rika_extra/find_keywords/find_keywords.h"
 
 using namespace std;
+using namespace TgBot;
+
+void RikaTelegramBot(); // Telegram bot thread
 
 //-------------------------------------------------------------------------------------------------
 // Global variables
+
+const char* pszBotToken = "INSERT BOT TOKEN"; // Insert bot token here
+const int64_t nPersonalChatID = 123456789; // Insert personal chat ID here
 
 const uint32_t uCommandStateSeconds = 7;
 
@@ -43,8 +56,21 @@ const uint32_t uCommandStateSeconds = 7;
 
 int main()
 {
+    // SIGINT handler
+    signal(SIGINT, [](int s)
+    {
+        cout << "SIGINT got" << endl;
+
+        //Clean-up
+        Clean_SpeechRecognition();
+        exit(0);
+    });
+
     // Initialise all modules and threads
     Initialise_SpeechRecognition();
+
+    thread tTelegramBot(RikaTelegramBot);
+    tTelegramBot.detach();
 
     cout << "Initialised" << endl;
 
@@ -66,7 +92,7 @@ int main()
             // Play 'called' sound
             PlayRandomDialogue(pszRikaVoice_Called, uNoRikaVoice_Called);
 
-            // Add time in command state
+
             time_t Timeup = time(0) + uCommandStateSeconds;
 
             while (time(0) < Timeup)
@@ -96,8 +122,8 @@ int main()
 
                     // Play 'command get' dialogue
                     PlayRandomDialogue(pszRikaVoice_CommandGet, uNoRikaVoice_CommandGet);
-
-                    // Do'going out' routine here (sleep computer, turn off lights for example)
+                    
+                    // Do 'leaving home' routine here
 
                     break;
                 }
@@ -114,7 +140,7 @@ int main()
                     // Play 'get command' dialogue
                     PlayRandomDialogue(pszRikaVoice_CommandGet, uNoRikaVoice_CommandGet);
 
-                    // Turn on lights here (for example)
+                    // Turn on lights here
                 }
 
                 // Turn lights off
@@ -129,7 +155,7 @@ int main()
                     // Play 'get command' sound
                     PlayRandomDialogue(pszRikaVoice_CommandGet, uNoRikaVoice_CommandGet);
 
-                    // Turn off lights here (for example)
+                    // Turn off lights here
                 }
 
                 // User says 'Thanks'
@@ -162,6 +188,95 @@ int main()
     }
 
     return EXIT_SUCCESS;
+}
+
+//---------------------------------------TELEGRAM BOT----------------------------------------------------------
+
+void RikaTelegramBot()
+// Telegram bot thread
+{
+    // Initialise bot
+    Bot bot(pszBotToken);
+    uint32_t uNoCatches = 0;
+
+    bot.getApi().sendMessage(nPersonalChatID, "Initialised!");
+
+    // Initialise function on any message
+    bot.getEvents().onAnyMessage([&bot](Message::Ptr message)
+    {
+        // Wait a little
+        sleep(1);
+
+        // Unidentified user
+        if (message->chat->id != nPersonalChatID)
+        {
+            cout << "Unidentified user, chat ID = " << message->chat->id << endl;
+
+            bot.getApi().sendMessage(message->chat->id, GetRandomTextDialogue(pszRikaText_NoAuth));
+            return;
+        }
+
+        string pszMessage = message->text.c_str();
+        cout << "User wrote " <<  pszMessage << endl;
+
+        // Coming home
+        if (FindKeywords(pszMessage, "be home") || FindKeywords(pszMessage, "be back") || FindKeywords(pszMessage, "on my way home"))
+        {
+            bot.getApi().sendMessage(message->chat->id, GetRandomTextDialogue(pszRikaText_ComingHome));
+
+            // Do 'coming home' routine here
+
+            return;
+        }
+
+        // Thanks
+        else if (FindKeywords(pszMessage, "Thanks") || FindKeywords(pszMessage, "Thank", "you"))
+        {
+            bot.getApi().sendMessage(message->chat->id, GetRandomTextDialogue(pszRikaText_Thanks));
+            return;
+        }
+
+        // Rika called
+        else if (FindKeywords(pszMessage, "Rika") || FindKeywords(pszMessage, "rika"))
+        {
+            bot.getApi().sendMessage(message->chat->id, GetRandomTextDialogue(pszRikaText_Called));
+            return;
+        }
+
+        // Cancel
+        else if (FindKeywords(pszMessage, "Nothing") || FindKeywords(pszMessage, "Nevermind"))
+        {
+            bot.getApi().sendMessage(message->chat->id, GetRandomTextDialogue(pszRikaText_Cancel));
+            return;
+        }
+    });
+
+    // Long poll
+    while (uNoCatches < 10)
+    {
+        try
+        {
+            cout << "Bot username: " << bot.getApi().getMe()->username.c_str() << endl;
+
+            TgLongPoll longPoll(bot);
+
+            while (1)
+            {
+                cout << "Long poll started" << endl;
+                longPoll.start();
+            }
+        }
+
+        catch (exception& e)
+        {
+            cout << "error: " << e.what() << endl;
+            uNoCatches++;
+            sleep(60);
+        }
+    }
+
+    cout << "Unable to connect to the internet for a long period" << endl;
+    exit(1);
 }
 
 //*************************************************************************************************
