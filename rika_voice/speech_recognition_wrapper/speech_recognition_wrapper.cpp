@@ -2,7 +2,7 @@
 // Uses ALSA and Pocketsphinx.
 
 // REVISION HISTORY
-// Fixed non-exiting error on audio capture
+// Fixed non-exiting error on audio capture -- A. Amiruddin -- 15/01/2017
 
 //=================================================================================================
 //    Copyright (C) 2016  Afeeq Amiruddin
