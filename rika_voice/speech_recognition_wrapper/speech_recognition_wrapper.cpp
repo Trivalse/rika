@@ -2,7 +2,8 @@
 // Uses ALSA and Pocketsphinx.
 
 // REVISION HISTORY
-// Fixed non-exiting error on audio capture, and prints error correctly -- A. Amiruddin -- 15/01/2017
+// Fixed non-exiting error, and prints error correctly -- A. Amiruddin -- 15/01/2017
+// Moved snd_pcm initialisations to RecogniseSpeech() due to corrupted file descriptor after some time if not constantly initialised/freed -- A. Amiruddin -- 18/01/2017
 
 //=================================================================================================
 //    Copyright (C) 2016  Afeeq Amiruddin
@@ -43,10 +44,6 @@ const char* pszDictionary = "rika_voice/speech_recognition_wrapper/model/en-us/4
 
 static cmd_ln_t* Config = NULL;
 static ps_decoder_t* PS_Decoder = NULL;
-static snd_pcm_t *Handle_SND = NULL;
-static snd_pcm_uframes_t Frames = 4096;
-static int32_t nDIR = 0;
-static snd_pcm_hw_params_t *Parameters_SND = NULL;
 
 //*************************************************************************************************
 
@@ -76,6 +73,22 @@ void Initialise_SpeechRecognition()
         exit(1);
     }
 
+    return;
+} // Initialise_SpeechRecognition()
+
+//-------------------------------------------------------------------------------------------------
+
+string RecogniseSpeech()
+// Waits until user start speaking, then records until user stops speaking. Returns string of decoded speech, or "error" on failure.
+{
+    // Declare variables
+    snd_pcm_t *Handle_SND = NULL;
+    snd_pcm_uframes_t Frames = 4096;
+    int32_t nDIR = 0;
+    snd_pcm_hw_params_t *Parameters_SND = NULL;
+    uint32_t uRate = 16000;
+    int32_t nError = 0;
+
     // Initialise capture device
     if (snd_pcm_open(&Handle_SND, "default", SND_PCM_STREAM_CAPTURE, 0) < 0)
     {
@@ -84,8 +97,6 @@ void Initialise_SpeechRecognition()
     }
 
     // Initialise hardware configuration
-    uint32_t uRate = 16000;
-
     snd_pcm_hw_params_alloca(&Parameters_SND);                                                // Parameter object allocation
     snd_pcm_hw_params_any(Handle_SND, Parameters_SND);                                        // Add in default values
     snd_pcm_hw_params_set_access(Handle_SND, Parameters_SND, SND_PCM_ACCESS_RW_INTERLEAVED);  // Interleaved mode
@@ -104,20 +115,15 @@ void Initialise_SpeechRecognition()
     snd_pcm_nonblock(Handle_SND, 1);                                                          // Open in non-blocking
 
     // Enable parameters
-    if (snd_pcm_hw_params(Handle_SND, Parameters_SND) < 0)
+    nError = snd_pcm_hw_params(Handle_SND, Parameters_SND);
+
+    if (nError < 0)
     {
         cout << "unable to set hw parameters" << endl;
+        cout << snd_strerror(nError) << endl;
         exit(1);
     }
 
-    return;
-} // Initialise_SpeechRecognition()
-
-//-------------------------------------------------------------------------------------------------
-
-string RecogniseSpeech()
-// Waits until user start speaking, then records until user stops speaking. Returns string of decoded speech.
-{
     // Start capture and decode
     uint8_t uUtteranceFlag = FALSE;
     uint8_t uSpeechFlag = FALSE;
@@ -153,7 +159,7 @@ string RecogniseSpeech()
             cout << snd_strerror(nFramesInBuffer) << endl;
             if (snd_pcm_prepare(Handle_SND) < 0)
             {
-                cout << "Can't recover from underrun" << endl;
+                cout << "Can't recover from overrun" << endl;
                 exit(1);
             }
 
@@ -163,7 +169,7 @@ string RecogniseSpeech()
         // Sound driver asleep
         else if (nFramesInBuffer == -ESTRPIPE)
         {
-            cout << "Resuming sound driver." << endl;
+            cout << snd_strerror(nFramesInBuffer) << endl;
             while (nFramesInBuffer = snd_pcm_resume(Handle_SND) == -EAGAIN)
             {
                 sleep(1);
@@ -181,10 +187,23 @@ string RecogniseSpeech()
             }
         }
 
+        else if (nFramesInBuffer == -EBADFD)
+        {
+            cout << snd_strerror(nFramesInBuffer) << endl;
+            exit(1);
+        }
+
+        else if (nFramesInBuffer == -ENOTTY && nFramesInBuffer == -ENODEV)
+        {
+            cout << snd_strerror(nFramesInBuffer) << endl;
+            exit (1);
+        }
+
         // Error
         else if (nFramesInBuffer < 0)
         {
             cout << snd_strerror(nFramesInBuffer) << endl;
+
             exit(1);
         }
 
@@ -239,6 +258,9 @@ string RecogniseSpeech()
         }
     }
 
+    snd_pcm_drain(Handle_SND);
+    snd_pcm_close(Handle_SND);
+
     return pszHypothesis;
 } // RecogniseSpeech()
 
@@ -250,9 +272,6 @@ void Clean_SpeechRecognition()
     // Tidy-up
     ps_free(PS_Decoder);
     cmd_ln_free_r(Config);
-
-    snd_pcm_drain(Handle_SND);
-    snd_pcm_close(Handle_SND);
 
     return;
 }  // Clean_SpeechRecognition()
